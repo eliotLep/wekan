@@ -19,7 +19,7 @@ Environnement de gestion de session d'apprentissage agile.
 
 ## About Wekan
 
-Wekan is an completely [Open Source][open_source] and [Free software][free_software]
+Wekan is an completely Open Source and Free software
 collaborative kanban board application with MIT license.
 
 Whether you’re maintaining a personal todo list, planning your holidays with some friends,
