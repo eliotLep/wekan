@@ -8,6 +8,36 @@ import Mongo from 'meteor/mongo'
 
 
 
+BlazeComponent.extendComponent({
+
+
+  onRendered() {
+
+    //setup the buttons
+    var buttonUpdate = document.getElementById('buttonUpdate');
+    var buttonChangeView = document.getElementById('buttonChangeView');
+    buttonUpdate.addEventListener('click',updateChart);
+    buttonChangeView.addEventListener('click',changeChartView);
+
+
+    updateChart();
+
+  },
+}).register('chart');
+
+
+var currentView='Day';
+
+class Day {
+  constructor(day,nbTaskDone){
+    this.day = day;
+    this.nbTaskDone = nbTaskDone;
+  }
+  addTasksDone(nbTasks){
+    this.nbTaskDone+=nbTasks;
+  }
+
+}
 
 class Sprint {
   constructor(receivedAt,dueAt){
@@ -37,137 +67,230 @@ class Sprint {
     this.numTasksDone-=nbTasks;
   }
 
+
+
+}
+
+function getNormalizedDate(isoDate){
+  return isoDate.toISOString().substring(0,10);
 }
 
 
-BlazeComponent.extendComponent({
+
+function updateChart(){
 
 
+  //get all the cards for this board
+  const cardsDueTime = Cards.find().fetch(); //TODO test if it dont count other board tasks if it does get them by board id in find()
 
-  onRendered() {
-
-    //on recupere toutes les cartes
-    const cardsDueTime = Cards.find().fetch();
-
-    //contiendra la date des sprints
-    var sprints = new Array();
+  //will contain sprint dates and other informations about sprints
+  var sprints = new Array();
+  //will contain the number of task done for each day of the project
+  var days = new Array();
 
 
-    for(var i=0;i<cardsDueTime.length;i++){
-      var item = cardsDueTime[i];
+  //init the different sprints received and dueAt dates
+  for(var i=0;i<cardsDueTime.length;i++){
+    var item = cardsDueTime[i];
 
-      if(item.dueAt==null || item.dueAt==undefined || item.receivedAt==null || item.receivedAt==undefined){
-        continue;
+    if(item.dueAt==null || item.dueAt==undefined || item.receivedAt==null || item.receivedAt==undefined){
+      continue;
+    }
+    var receivedAt = item.receivedAt;
+    var dueAt = item.dueAt;
+
+    var test=0;
+    for(var j=0;j<sprints.length;j++){
+      var itemSprint = sprints[j];
+      if(getNormalizedDate(itemSprint.dueAt) == getNormalizedDate(dueAt) ){
+        test=1;
+        break;
       }
-      var receivedAt = item.receivedAt;
-      var dueAt = item.dueAt;
+    }
+    if(test==0){
+      sprints.push( new Sprint(receivedAt,dueAt) );
+    }
 
-      var test=0;
-      for(var j=0;j<sprints.length;j++){
-        var itemSprint = sprints[j];
-        if( itemSprint.dueAt.getDay()==dueAt.getDay() ){
-          test=1;
-          break;
+  }
+
+  //setup some important values of the project
+  var totalTaskCount=0;
+  var dateStartProject;
+  var dateEndProject;
+  var totalDayProject;
+  if(sprints.length>0){
+    dateStartProject=sprints[0].receivedAt;
+    dateEndProject=sprints[0].dueAt;
+  }
+  for(var i=0;i<sprints.length;i++){
+    if(dateStartProject>sprints[i].receivedAt){
+      dateStartProject = sprints[i].receivedAt;
+    }
+    if(dateEndProject<sprints[i].dueAt){
+      dateEndProject = sprints[i].dueAt;
+    }
+  }
+
+  totalDayProject = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(dateEndProject) ) ;
+  for(var i=0;i<totalDayProject;i++){
+    days.push( new Day( i , 0) );
+  }
+
+
+
+
+  //set the other values of each sprint, the tasksDone and totalTasks
+  for(var i=0;i<sprints.length;i++){
+    var item = sprints[i];
+
+    //on recupere les tasks de ce sprint.
+    var sprintTasksTot = Cards.find( {receivedAt : {"$gte": item.receivedAt,"$lt": item.dueAt} } ).fetch();
+
+    totalTaskCount+=sprintTasksTot.length;
+
+    //on recupere les tasks terminé pour ce sprint
+    var sprintTasksDone=new Array();
+    for(var j=0;j<sprintTasksTot.length;j++){
+      if(sprintTasksTot[j].endAt!=null && sprintTasksTot[j].endAt!=undefined){
+        sprintTasksDone.push(sprintTasksTot[j]);
+
+        var day = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(sprintTasksTot[j].endAt));
+        if(day<totalDayProject){
+          days[ day ].addTasksDone(1);
         }
-      }
-      if(test==0){
-        sprints.push( new Sprint(receivedAt,dueAt) );
-      }
 
+
+      }
     }
 
-    //on setup les valeurs global du projet
-    var totalTaskCount=0;
-    var dateStartProject;
-    var dateEndProject;
-    if(sprints.length>0){
-      dateStartProject=sprints[0].receivedAt;
-      dateEndProject=sprints[0].dueAt;
-    }
-    for(var i=0;i<sprints.length;i++){
-      if(dateStartProject>sprints[i].receivedAt){
-        dateStartProject = sprints[i].receivedAt;
-      }
-      if(dateEndProject<sprints[i].dueAt){
-        dateEndProject = sprints[i].dueAt;
-      }
-
-    }
+    item.setTasksTot(sprintTasksTot.length);
+    item.setTasksDone(sprintTasksDone.length);
+  }
 
 
-    for(var i=0;i<sprints.length;i++){
-      var item = sprints[i];
 
-      //on recupere les tasks de ce sprint.
-      var sprintTasksTot = Cards.find( {receivedAt : {"$gte": item.receivedAt,"$lt": item.dueAt} } ).fetch();
 
-      totalTaskCount+=sprintTasksTot.length;
+  //mode day du burndown chart
+  var tasksPerDay = new Array();
+  var totDoneDays=totalTaskCount;
+  tasksPerDay.push(totDoneDays);
+  for(var i=0;i<totalDayProject;i++){
+    tasksPerDay.push(totDoneDays = totDoneDays - days[i].nbTaskDone );
+  }
 
-      //on recupere les tasks terminé pour ce sprint
-      var sprintTasksDone=new Array();
-      for(var j=0;j<sprintTasksTot.length;j++){
-        if(sprintTasksTot[j].endAt!=null && sprintTasksTot[j].endAt!=undefined){
-          sprintTasksDone.push(sprintTasksTot[j]);
+
+  //mode sprint du burndownchart
+  var tasksPerSprint = new Array();
+  var totalTemp=totalTaskCount;
+  tasksPerSprint.push(totalTemp);
+  for(var i=0;i<sprints.length;i++){
+    tasksPerSprint.push( totalTemp = totalTemp-sprints[i].numTasksDone );
+  }
+
+
+  if(currentView=='Day'){
+    showBurnDown('myChart', tasksPerDay, [0],'Day');
+  }else{
+    showBurnDown('myChart', tasksPerSprint, [0],'Sprint');
+  }
+
+}
+
+function changeChartView(){
+  if(currentView=='Day')currentView='Sprint';
+  else currentView='Day';
+  updateChart();
+}
+
+
+
+
+
+function daysBetween(date1Normalized,date2Normalized){
+  return (new Date(date2Normalized)-new Date(date1Normalized))/(1000*3600*24);
+}
+
+
+function sumArrayUpTo(arrData, index) {
+  var total = 0;
+  for (var i = 0; i <= index; i++) {
+    if (arrData.length > i) {
+      total += arrData[i];
         }
+  }
+  return total;
+}
+
+
+function showBurnDown(elementId, burndownData, scopeChange = [] , typeAbs) {
+
+  var speedCanvas = document.getElementById(elementId);
+  Chart.defaults.global.defaultFontFamily = "Arial";
+  Chart.defaults.global.defaultFontSize = 14;
+
+  nbData = burndownData.length;
+  if(nbData<=0)return;
+
+  const totalData = burndownData[0];
+
+  const idealTaskPerData = totalData / nbData ;
+
+  i = 0;
+
+  var labelsSpeedData = new Array();
+  var idealData = new Array();
+  for(var i=0;i<nbData;i++){
+    labelsSpeedData.push( typeAbs+" "+(i+1) );
+    idealData.push( Math.round(totalData - (idealTaskPerData * i) + sumArrayUpTo(scopeChange, (i))) );
+  }
+
+
+  var speedData = {
+    labels: labelsSpeedData,
+    datasets: [
+      {
+        label: "Burndown",
+        data: burndownData,
+        fill: false,
+        borderColor: "#EE6868",
+        backgroundColor: "#EE6868",
+        lineTension: 0,
+      },
+      {
+        label: "Ideal",
+        borderColor: "#6C8893",
+        backgroundColor: "#6C8893",
+        lineTension: 0,
+        borderDash: [5, 5],
+        fill: false,
+        data: idealData
+      },
+    ]
+  };
+
+  var chartOptions = {
+    legend: {
+      display: true,
+      position: 'top',
+      labels: {
+        boxWidth: 80,
+        fontColor: 'black'
       }
-
-      item.setTasksTot(sprintTasksTot.length);
-      item.setTasksDone(sprintTasksDone.length);
+    },
+    scales: {
+        yAxes: [{
+            ticks: {
+                min: 0,
+                max: Math.round(burndownData[0] * 1.1)
+            }
+        }]
     }
+  };
 
+  var lineChart = new Chart(speedCanvas, {
+    type: 'line',
+    data: speedData,
+    options: chartOptions
+  });
 
-    //affichage console
-    console.log('nb sprint : '+sprints.length );
-    if(sprints.length>0){
-      console.log('tache terminé premier sprint : '+sprints[0].numTasksDone );
-    }
-    console.log('tache tot : '+totalTaskCount );
-    console.log('debut proj : '+dateStartProject );
-    console.log('fin proj : '+dateEndProject );
-
-
-
-    const ctx = document.getElementById('myChart').getContext('2d');
-
-    const myChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-        datasets: [
-          {
-            label: '# of Votes',
-            data: [12, 19, 3, 5, 2, 3],
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.2)',
-              'rgba(54, 162, 235, 0.2)',
-              'rgba(255, 206, 86, 0.2)',
-              'rgba(75, 192, 192, 0.2)',
-              'rgba(153, 102, 255, 0.2)',
-              'rgba(255, 159, 64, 0.2)',
-            ],
-            borderColor: [
-              'rgba(255, 99, 132, 1)',
-              'rgba(54, 162, 235, 1)',
-              'rgba(255, 206, 86, 1)',
-              'rgba(75, 192, 192, 1)',
-              'rgba(153, 102, 255, 1)',
-              'rgba(255, 159, 64, 1)',
-            ],
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        scales: {
-          yAxes: [
-            {
-              ticks: {
-                beginAtZero: true,
-              },
-            },
-          ],
-        },
-      },
-    });
-  },
-}).register('chart');
+}
