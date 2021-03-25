@@ -19,10 +19,12 @@ BlazeComponent.extendComponent({
     buttonUpdate.addEventListener('click',updateChart);
     buttonChangeView.addEventListener('click',changeChartView);
 
-
     updateChart();
-
   },
+
+
+
+
 }).register('chart');
 
 
@@ -79,9 +81,9 @@ function getNormalizedDate(isoDate){
 
 function updateChart(){
 
-
+  var currentBoardId=Boards.findOne(Session.get('currentBoard'))._id;
   //get all the cards for this board
-  const cardsDueTime = Cards.find().fetch(); //TODO test if it dont count other board tasks if it does get them by board id in find()
+  const cardsDueTime = Cards.find({boardId: currentBoardId}).fetch(); //TODO test if it dont count other board tasks if it does get them by board id in find()
 
   //will contain sprint dates and other informations about sprints
   var sprints = new Array();
@@ -135,7 +137,7 @@ function updateChart(){
   }
 
   totalDayProject = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(dateEndProject) ) ;
-  for(var i=0;i<totalDayProject;i++){
+  for(var i=0;i<=totalDayProject;i++){
     days.push( new Day( i , 0) );
   }
 
@@ -147,7 +149,7 @@ function updateChart(){
     var item = sprints[i];
 
     //on recupere les tasks de ce sprint.
-    var sprintTasksTot = Cards.find( {receivedAt : {"$gte": item.receivedAt,"$lt": item.dueAt} } ).fetch();
+    var sprintTasksTot = Cards.find( {receivedAt : {"$gte": item.receivedAt,"$lt": item.dueAt},boardId: ""+currentBoardId } ).fetch();
 
     totalTaskCount+=sprintTasksTot.length;
 
@@ -158,8 +160,9 @@ function updateChart(){
         sprintTasksDone.push(sprintTasksTot[j]);
 
         var day = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(sprintTasksTot[j].endAt));
-        if(day<totalDayProject){
+        if(day<=totalDayProject){
           days[ day ].addTasksDone(1);
+          console.log("done day:"+day+" for:"+getNormalizedDate(sprintTasksTot[j].endAt));
         }
 
 
@@ -171,36 +174,64 @@ function updateChart(){
   }
 
 
+  for(var i=0;i<days.length;i++){
+    console.log("day:"+days[i].day+" done:"+days[i].nbTaskDone);
+  }
 
+  for(var i=0;i<sprints.length;i++){
+    console.log("sprint:"+sprints[i].receivedAt+" dueAt:"+sprints[i].dueAt);
+  }
 
   //mode day du burndown chart
   var tasksPerDay = new Array();
   var totDoneDays=totalTaskCount;
   tasksPerDay.push(totDoneDays);
-  for(var i=0;i<totalDayProject;i++){
+  for(var i=0;i<=totalDayProject;i++){
     totDoneDays = totDoneDays - days[i].nbTaskDone ;
     tasksPerDay.push(totDoneDays);
-    console.log("day:"+tasksPerDay[i]);
+    //console.log("day:"+tasksPerDay[i]);
   }
-  console.log("day:"+tasksPerDay[tasksPerDay.length-1]);
+  //console.log("day:"+tasksPerDay[tasksPerDay.length-1]);
 
 
   //setup les sprints dans l'odre ici
   //-
-  /*var finalSprintArray = new Array();
-  for(var i=0;i<sprints.length;i++){
+  var finalSprintArray = new Array();
+  var bestDay=9999;
+  if(sprints.length>0){
+    finalSprintArray[0]=sprints[0];
+    //console.log("test+"+dateStartProject+"/"+sprints[0].dueAt);
+    bestDay=daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(sprints[0].dueAt));
+    //console.log("BestDay+"+bestDay);
+  }
+  for(var x=0;x<sprints.length;x++){
+    for(var i=0;i<sprints.length;i++){
+      var day=9999;
+      if(x>0){
+        day = daysBetween(getNormalizedDate(finalSprintArray[x-1].dueAt),getNormalizedDate(sprints[i].dueAt));
+      }
+      else {
+        day = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(sprints[i].dueAt));
+      }
+      //console.log("try push:"+sprints[i].dueAt+" day was:"+day+" bestDay:"+bestDay);
+      if( day<bestDay && day>0 ){
+        //console.log("push:"+sprints[i].dueAt+" day was:"+day+" bestDay:"+bestDay);
+        bestDay=day;
+        finalSprintArray[x]=sprints[i];
 
-  }*/
+      }
+    }
+  }
   //mode sprint du burndownchart
   var tasksPerSprint = new Array();
   var totalTemp=totalTaskCount;
   tasksPerSprint.push(totalTemp);
-  for(var i=0;i<sprints.length;i++){
-    totalTemp = totalTemp-sprints[i].numTasksDone;
+  for(var i=0;i<finalSprintArray.length;i++){
+    totalTemp = totalTemp-finalSprintArray[i].numTasksDone;
     tasksPerSprint.push( totalTemp);
-    console.log("sprint:"+tasksPerSprint[i]);
+    //console.log("sprint:"+tasksPerSprint[i]);
   }
-  console.log("sprint:"+tasksPerSprint[tasksPerSprint.length-1]);
+  //console.log("sprint:"+tasksPerSprint[tasksPerSprint.length-1]);
 
 
   if(currentView=='Day'){
