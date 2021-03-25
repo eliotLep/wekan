@@ -103,6 +103,9 @@ function updateChart(){
     for(var j=0;j<sprints.length;j++){
       var itemSprint = sprints[j];
       if(getNormalizedDate(itemSprint.dueAt) == getNormalizedDate(dueAt) ){
+        if(getNormalizedDate(itemSprint.receivedAt)>getNormalizedDate(receivedAt) ){//when a card ends at the same moment but start before, we dont add a new sprint be we replace the previous receivedAt
+          sprints[j].receivedAt=receivedAt;
+        }
         test=1;
         break;
       }
@@ -175,17 +178,29 @@ function updateChart(){
   var totDoneDays=totalTaskCount;
   tasksPerDay.push(totDoneDays);
   for(var i=0;i<totalDayProject;i++){
-    tasksPerDay.push(totDoneDays = totDoneDays - days[i].nbTaskDone );
+    totDoneDays = totDoneDays - days[i].nbTaskDone ;
+    tasksPerDay.push(totDoneDays);
+    console.log("day:"+tasksPerDay[i]);
   }
+  console.log("day:"+tasksPerDay[tasksPerDay.length-1]);
 
 
+  //setup les sprints dans l'odre ici
+  //-
+  /*var finalSprintArray = new Array();
+  for(var i=0;i<sprints.length;i++){
+
+  }*/
   //mode sprint du burndownchart
   var tasksPerSprint = new Array();
   var totalTemp=totalTaskCount;
   tasksPerSprint.push(totalTemp);
   for(var i=0;i<sprints.length;i++){
-    tasksPerSprint.push( totalTemp = totalTemp-sprints[i].numTasksDone );
+    totalTemp = totalTemp-sprints[i].numTasksDone;
+    tasksPerSprint.push( totalTemp);
+    console.log("sprint:"+tasksPerSprint[i]);
   }
+  console.log("sprint:"+tasksPerSprint[tasksPerSprint.length-1]);
 
 
   if(currentView=='Day'){
@@ -233,16 +248,24 @@ function showBurnDown(elementId, burndownData, scopeChange = [] , typeAbs) {
 
   const totalData = burndownData[0];
 
-  const idealTaskPerData = totalData / nbData ;
+  var idealTaskPerData=0;
+  if(nbData>1){
+    idealTaskPerData=totalData / (nbData-1);
+  }else{
+    idealTaskPerData=totalData;
+  }
 
-  i = 0;
 
   var labelsSpeedData = new Array();
   var idealData = new Array();
-  for(var i=0;i<nbData;i++){
-    labelsSpeedData.push( typeAbs+" "+(i+1) );
-    idealData.push( Math.round(totalData - (idealTaskPerData * i) + sumArrayUpTo(scopeChange, (i))) );
+  idealData.push(totalData);
+  labelsSpeedData.push( "Start" );
+
+  for(var i=1;i<nbData;i++){
+    labelsSpeedData.push( typeAbs+" "+(i) );
+    idealData.push( totalData - (idealTaskPerData * i) + sumArrayUpTo(scopeChange, (i-1)) );
   }
+
 
 
   var speedData = {

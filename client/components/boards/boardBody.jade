@@ -5,8 +5,6 @@ template(name="board")
         +cardDetails(currentCard)
       else
         +boardBody
-        +chart
-        +widget
     else
       //-- XXX We need a better error message in case the board has been archived
       +message(label="board-not-found")
