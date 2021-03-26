@@ -24,6 +24,7 @@
     "bson": "^4.2.2",
     "bunyan": "^1.8.15",
     "chart.js": "^2.9.4",
+    "easytimer.js": "^4.3.4",
     "es6-promise": "^4.2.4",
     "exceljs": "^4.2.0",
     "fibers": "^5.0.0",
