@@ -2,17 +2,18 @@
 
 # If you want to restart even on crash, uncomment while and done lines.
 #while true; do
-      cd .build/bundle
+      #cd .build/bundle
+      meteor npm install
       #---------------------------------------------
       # Debug OIDC OAuth2 etc.
       #export DEBUG=true
       #---------------------------------------------
-      export MONGO_URL='mongodb://127.0.0.1:27017/wekan'
+      export MONGO_URL='mongodb://localhost:27017/wekan'
       #---------------------------------------------
       # Production: https://example.com/wekan
       # Local: http://localhost:2000
       #export ipaddress=$(ifdata -pa eth0)
-      export ROOT_URL='http://localhost:2000'
+      export ROOT_URL='https://la-agile2e.univ-lemans.fr:3000'
       #---------------------------------------------
       # https://github.com/wekan/wekan/wiki/Troubleshooting-Mail
       # https://github.com/wekan/wekan-mongodb/blob/master/docker-compose.yml
@@ -21,7 +22,7 @@
       #export KADIRA_OPTIONS_ENDPOINT=http://127.0.0.1:11011
       #---------------------------------------------
       # This is local port where Wekan Node.js runs, same as below on Caddyfile settings.
-      export PORT=2000
+      export PORT=3000
       #---------------------------------------------
       # Wekan Export Board works when WITH_API=true.
       # If you disable Wekan API with false, Export Board does not work.
@@ -385,7 +386,6 @@
       #export SAML_LOCAL_PROFILE_MATCH_ATTRIBUTE=
       #export SAML_ATTRIBUTES=
       #---------------------------------------------------------------------
-      node main.js
+      meteor
       # & >> ../../wekan.log
-      cd ../..
 #done
