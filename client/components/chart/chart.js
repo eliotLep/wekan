@@ -42,11 +42,12 @@ class Day {
 }
 
 class Sprint {
-  constructor(receivedAt,dueAt){
+  constructor(receivedAt,dueAt,listId){
     this.receivedAt = receivedAt;
     this.dueAt = dueAt;
     this.numTasksTot = 0;
     this.numTasksDone = 0;
+    this.listId = listId;
   }
 
   addTaskTot(nbTasks){
@@ -100,20 +101,25 @@ function updateChart(){
     }
     var receivedAt = item.receivedAt;
     var dueAt = item.dueAt;
+    var listId = item.listId;
 
     var test=0;
     for(var j=0;j<sprints.length;j++){
       var itemSprint = sprints[j];
-      if(getNormalizedDate(itemSprint.dueAt) == getNormalizedDate(dueAt) ){
-        if(getNormalizedDate(itemSprint.receivedAt)>getNormalizedDate(receivedAt) ){//when a card ends at the same moment but start before, we dont add a new sprint be we replace the previous receivedAt
+      if( item.listId == itemSprint.listId ){
+        if( getNormalizedDate(itemSprint.receivedAt)>getNormalizedDate(receivedAt) ){//when a card ends at the same moment but start before, we dont add a new sprint be we replace the previous receivedAt
           sprints[j].receivedAt=receivedAt;
         }
+        if( getNormalizedDate(itemSprint.dueAt)<getNormalizedDate(dueAt) ){//when a card ends at the same moment but start before, we dont add a new sprint be we replace the previous receivedAt
+          sprints[j].dueAt=dueAt;
+        }
+
         test=1;
         break;
       }
     }
     if(test==0){
-      sprints.push( new Sprint(receivedAt,dueAt) );
+      sprints.push( new Sprint(receivedAt,dueAt,listId) );
     }
 
   }
@@ -149,7 +155,7 @@ function updateChart(){
     var item = sprints[i];
 
     //on recupere les tasks de ce sprint.
-    var sprintTasksTot = Cards.find( {receivedAt : {"$gte": item.receivedAt,"$lt": item.dueAt},boardId: ""+currentBoardId } ).fetch();
+    var sprintTasksTot = Cards.find( {listId : item.listId, boardId: ""+currentBoardId } ).fetch();
 
     totalTaskCount+=sprintTasksTot.length;
 
@@ -174,13 +180,13 @@ function updateChart(){
   }
 
 
-  for(var i=0;i<days.length;i++){
+  /*for(var i=0;i<days.length;i++){
     console.log("day:"+days[i].day+" done:"+days[i].nbTaskDone);
   }
 
   for(var i=0;i<sprints.length;i++){
     console.log("sprint:"+sprints[i].receivedAt+" dueAt:"+sprints[i].dueAt);
-  }
+  }*/
 
   //mode day du burndown chart
   var tasksPerDay = new Array();
@@ -196,32 +202,35 @@ function updateChart(){
 
   //setup les sprints dans l'odre ici
   //-
+  var bestDay=0;
   var finalSprintArray = new Array();
-  var bestDay=9999;
   if(sprints.length>0){
-    finalSprintArray[0]=sprints[0];
+    finalSprintArray[0] = sprints[0];
     //console.log("test+"+dateStartProject+"/"+sprints[0].dueAt);
-    bestDay=daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(sprints[0].dueAt));
+    bestDay=sprints[0].dueAt;
     //console.log("BestDay+"+bestDay);
   }
+
+  var used = new Array();
+
   for(var x=0;x<sprints.length;x++){
+    var last=0;
+    bestDay=0;
     for(var i=0;i<sprints.length;i++){
-      var day=9999;
-      if(x>0){
-        day = daysBetween(getNormalizedDate(finalSprintArray[x-1].dueAt),getNormalizedDate(sprints[i].dueAt));
-      }
-      else {
-        day = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(sprints[i].dueAt));
-      }
+
+      var day = sprints[i].dueAt;
+
       //console.log("try push:"+sprints[i].dueAt+" day was:"+day+" bestDay:"+bestDay);
-      if( day<bestDay && day>0 ){
+      if((bestDay==0 || day<bestDay) && !used.includes(i) ){
         //console.log("push:"+sprints[i].dueAt+" day was:"+day+" bestDay:"+bestDay);
         bestDay=day;
         finalSprintArray[x]=sprints[i];
-
+        last=i;
       }
     }
+    used.push(last);
   }
+
   //mode sprint du burndownchart
   var tasksPerSprint = new Array();
   var totalTemp=totalTaskCount;
