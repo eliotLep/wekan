@@ -7,13 +7,14 @@ BlazeComponent.extendComponent({
   onRendered(){
     var timer = new Timer();
 
-
+    //setup les boutons et zone de texte
     var startButton = document.getElementById('startButton');
     var pauseButton = document.getElementById('pauseButton');
     var stopButton = document.getElementById('stopButton');
     var resetButton = document.getElementById('resetButton');
     var values = document.getElementById('values');
 
+    //ajoute les listener
     startButton.addEventListener('click',function () {
         timer.start();
     });
@@ -27,7 +28,7 @@ BlazeComponent.extendComponent({
         timer.reset();
     });
 
-
+    //maj de value
     timer.addEventListener('secondsUpdated', function (e) {
         values.innerHTML=timer.getTimeValues().toString();
     });

@@ -1,19 +1,16 @@
 const { calculateIndex } = Utils;
 
-//script(src="../node_modules/chart.js/dist/Chart.bundle.js")
 
-//const Chart = require('chart.js');
+//import les libs
 import Chart from 'chart.js';
 import Mongo from 'meteor/mongo'
 
 
-
 BlazeComponent.extendComponent({
 
-
+  //méthode appelé lors de l'affichage du composant blaze
   onRendered() {
-
-    //setup the buttons
+    //setup les boutons
     var buttonUpdate = document.getElementById('buttonUpdate');
     var buttonChangeView = document.getElementById('buttonChangeView');
     buttonUpdate.addEventListener('click',updateChart);
@@ -22,14 +19,13 @@ BlazeComponent.extendComponent({
     updateChart();
   },
 
-
-
-
 }).register('chart');
 
 
+//vu actuel du burndown chart
 var currentView='Day';
 
+//information d'un jour
 class Day {
   constructor(day,nbTaskDone){
     this.day = day;
@@ -38,9 +34,9 @@ class Day {
   addTasksDone(nbTasks){
     this.nbTaskDone+=nbTasks;
   }
-
 }
 
+//informations d'un sprint
 class Sprint {
   constructor(receivedAt,dueAt,listId){
     this.receivedAt = receivedAt;
@@ -69,17 +65,15 @@ class Sprint {
   remTaskDone(nbTasks){
     this.numTasksDone-=nbTasks;
   }
-
-
-
 }
 
+//retourne une date sous forme de string sans les heures, minutes et secondes
 function getNormalizedDate(isoDate){
   return isoDate.toISOString().substring(0,10);
 }
 
 
-
+//update les valeurs du burndown chart et le retrace
 function updateChart(){
 
   var currentBoardId=Boards.findOne(Session.get('currentBoard'))._id;
@@ -107,6 +101,7 @@ function updateChart(){
     for(var j=0;j<sprints.length;j++){
       var itemSprint = sprints[j];
       if( item.listId == itemSprint.listId ){
+        //mise a jour des dates de received et dueAt de ce sprint si on recupere une card de ce sprint avec d'autre valeur de received et dueAt
         if( getNormalizedDate(itemSprint.receivedAt)>getNormalizedDate(receivedAt) ){//when a card ends at the same moment but start before, we dont add a new sprint be we replace the previous receivedAt
           sprints[j].receivedAt=receivedAt;
         }
@@ -142,6 +137,7 @@ function updateChart(){
     }
   }
 
+  //initialise le tableau de jour du projet
   totalDayProject = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(dateEndProject) ) ;
   for(var i=0;i<=totalDayProject;i++){
     days.push( new Day( i , 0) );
@@ -165,6 +161,7 @@ function updateChart(){
       if(sprintTasksTot[j].endAt!=null && sprintTasksTot[j].endAt!=undefined){
         sprintTasksDone.push(sprintTasksTot[j]);
 
+        //on incremente le nombre de task fini pour le jour concerné
         var day = daysBetween(getNormalizedDate(dateStartProject),getNormalizedDate(sprintTasksTot[j].endAt));
         if(day<=totalDayProject){
           days[ day ].addTasksDone(1);
@@ -180,14 +177,6 @@ function updateChart(){
   }
 
 
-  /*for(var i=0;i<days.length;i++){
-    console.log("day:"+days[i].day+" done:"+days[i].nbTaskDone);
-  }
-
-  for(var i=0;i<sprints.length;i++){
-    console.log("sprint:"+sprints[i].receivedAt+" dueAt:"+sprints[i].dueAt);
-  }*/
-
   //mode day du burndown chart
   var tasksPerDay = new Array();
   var totDoneDays=totalTaskCount;
@@ -195,9 +184,8 @@ function updateChart(){
   for(var i=0;i<=totalDayProject;i++){
     totDoneDays = totDoneDays - days[i].nbTaskDone ;
     tasksPerDay.push(totDoneDays);
-    //console.log("day:"+tasksPerDay[i]);
   }
-  //console.log("day:"+tasksPerDay[tasksPerDay.length-1]);
+
 
 
   //setup les sprints dans l'odre ici
@@ -206,9 +194,7 @@ function updateChart(){
   var finalSprintArray = new Array();
   if(sprints.length>0){
     finalSprintArray[0] = sprints[0];
-    //console.log("test+"+dateStartProject+"/"+sprints[0].dueAt);
     bestDay=sprints[0].dueAt;
-    //console.log("BestDay+"+bestDay);
   }
 
   var used = new Array();
@@ -231,6 +217,7 @@ function updateChart(){
     used.push(last);
   }
 
+
   //mode sprint du burndownchart
   var tasksPerSprint = new Array();
   var totalTemp=totalTaskCount;
@@ -238,9 +225,8 @@ function updateChart(){
   for(var i=0;i<finalSprintArray.length;i++){
     totalTemp = totalTemp-finalSprintArray[i].numTasksDone;
     tasksPerSprint.push( totalTemp);
-    //console.log("sprint:"+tasksPerSprint[i]);
   }
-  //console.log("sprint:"+tasksPerSprint[tasksPerSprint.length-1]);
+
 
 
   if(currentView=='Day'){
@@ -251,6 +237,7 @@ function updateChart(){
 
 }
 
+//change le mode de vu du burn down chart
 function changeChartView(){
   if(currentView=='Day')currentView='Sprint';
   else currentView='Day';
@@ -260,12 +247,13 @@ function changeChartView(){
 
 
 
-
+//retourne le nombre de jour entre deux date (si les dates sont trop proche peut poser problème à cause du decalage horraire de la zone)
 function daysBetween(date1Normalized,date2Normalized){
   return (new Date(date2Normalized)-new Date(date1Normalized))/(1000*3600*24);
 }
 
 
+//fait varié le nombre de tache total au cours du projet, inutilisé actuelement
 function sumArrayUpTo(arrData, index) {
   var total = 0;
   for (var i = 0; i <= index; i++) {
@@ -276,7 +264,7 @@ function sumArrayUpTo(arrData, index) {
   return total;
 }
 
-
+//affiche le burndown chart
 function showBurnDown(elementId, burndownData, scopeChange = [] , typeAbs) {
 
   var speedCanvas = document.getElementById(elementId);
